@@ -8857,7 +8857,7 @@ do_prepare_update (PARSER_CONTEXT * parser, PT_NODE * statement)
 	  lhs = lhs->info.expr.arg1;
 	}
       statement->info.update.server_update = server_update;
-      if (server_update && !has_any_update_trigger)
+      if (server_update && !has_any_update_trigger && !(statement->info.update.hint & PT_HINT_USE_SBR))
 	{
 	  statement->info.update.execute_with_commit_allowed = 1;
 	}
@@ -10217,7 +10217,7 @@ do_prepare_delete (PARSER_CONTEXT * parser, PT_NODE * statement, PT_NODE * paren
       server_delete = (!has_trigger && !has_virt_obj);
 
       statement->info.delete_.server_delete = server_delete;
-      if (server_delete && !has_any_delete_trigger)
+      if (server_delete && !has_any_delete_trigger && !(statement->info.delete_.hint & PT_HINT_USE_SBR))
 	{
 	  statement->info.delete_.execute_with_commit_allowed = 1;
 	}
@@ -13953,20 +13953,20 @@ do_select_internal (PARSER_CONTEXT * parser, PT_NODE * statement, bool for_ins_u
 
   xasl = parser_generate_xasl (parser, statement);
 
-  if (for_ins_upd)
-    {
-      if (xasl->outptr_list)
-	{
-	  for (REGU_VARIABLE_LIST regu_var_list = xasl->outptr_list->valptrp; regu_var_list;
-	       regu_var_list = regu_var_list->next)
-	    {
-	      regu_var_list->value.flags |= REGU_VARIABLE_UPD_INS_LIST;
-	    }
-	}
-    }
-
   if (xasl && !pt_has_error (parser))
     {
+      if (for_ins_upd)
+	{
+	  if (xasl->outptr_list)
+	    {
+	      for (REGU_VARIABLE_LIST regu_var_list = xasl->outptr_list->valptrp; regu_var_list;
+		   regu_var_list = regu_var_list->next)
+		{
+		  regu_var_list->value.flags |= REGU_VARIABLE_UPD_INS_LIST;
+		}
+	    }
+	}
+
       if (pt_false_where (parser, statement))
 	{
 	  /* there is no results, this is a compile time false where clause */
@@ -17562,7 +17562,7 @@ do_insert_checks (PARSER_CONTEXT * parser, PT_NODE * statement, PT_NODE ** class
 	  goto exit;
 	}
 
-      if (!trigger_involved)
+      if (!trigger_involved && !(statement->info.insert.hint & PT_HINT_USE_SBR))
 	{
 	  statement->info.insert.execute_with_commit_allowed = 1;
 	}
